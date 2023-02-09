@@ -61,6 +61,22 @@ def update_column():
     return "Update successful."
 
 
+def check_id_individual(instruction):
+    # Function must be used within a try-except in case given_id is not an integer.
+    given_id = int(input(f"{instruction}"))
+    if given_id in id_in_books_table():
+        zero_or_enter_choice("This number is already a book id. ")
+    return given_id
+
+
+def check_id_exists(instruction):
+    # Function must be used within a try-except in case given_id is not an integer.
+    given_id = int(input(f"{instruction}"))
+    if given_id not in id_in_books_table():
+        zero_or_enter_choice("There is no record of this book id. ")
+    return given_id
+
+
 def exit_script():
     sys.exit(0)
 
@@ -71,7 +87,8 @@ def zero_or_enter_choice(reason):
     # It also considers if either of these two options are entered wrong then the function 'user_quit_option' runs.
     user_choice = input(f"{reason} Type 0 to return to main menu or enter to try again. ")
     if user_choice == "0":
-        pass
+        global return_to_main_menu
+        return_to_main_menu = True
     elif user_choice == "":
         global return_to_loop
         # global allows me to modify the outer scope variable return_to_loop within this inner scope.
@@ -80,19 +97,27 @@ def zero_or_enter_choice(reason):
         return_to_loop = True
     else:
         user_quit_choice()
-    return user_choice
 
 
 def user_quit_choice():
     # When the user has incorrectly inputted twice in a row, function allows them the option to quit the program.
     user_input = input("You have entered an invalid input. Do you wish to quit the program? (y/n) ")
     if user_input == "n":
-        pass
+        global return_to_main_menu
+        return_to_main_menu = True
     elif user_input == "y":
         exit_script()
     else:
         print("Invalid input, the program will now quit. ")
         exit_script()
+
+
+def select_record(selected_id):
+    cursor.execute("""SELECT id, Title, Author, Qty FROM books WHERE id = ?""", (selected_id,))
+    print("-----------------------------------------------------------------------------------------------------")
+    for row in cursor:
+        print("id: {}\t Title: {}\t Author: {}\t Quantity: {}\t".format(*row))
+    print("-----------------------------------------------------------------------------------------------------")
 
 
 # ============================================ CODE ====================================================
@@ -107,11 +132,14 @@ Title TEXT NOT NULL,
 Author TEXT DEFAULT unknown,
 Qty INTEGER DEFAULT 0)""")
 
-print(id_in_books_table())
-print(type(id_in_books_table()[1]))
 
 return_to_loop = False
-book_to_be_updated_id = None        # I have done this to get rid of the error that this variable could be undefined.
+# I have done this to get rid of the error that this variable could be undefined.
+# I believe that all variables below will always be defined due to the loops... pyCharm doesn't agree... not sure why.
+book_to_be_updated_id = None
+enter_id = None
+book_id_delete = None
+search_id = None
 
 while True:
     return_to_main_menu = False     # Variable defined here so each time it resets when the program returns to menu.
@@ -119,7 +147,6 @@ while True:
     # Strip method removes error if user enters a dot/ space bar after there number choice.
 
     if user_menu_option == "0":
-        # try-accept here for closing the database or could put whole loop in try and then
         break
 
     if user_menu_option == "1":
@@ -127,18 +154,15 @@ while True:
         while True:
             try:
                 # Could add a feature which gives a suggested book id.
-                enter_id = int(input("Book id: "))
-                if enter_id in id_in_books_table():
-                    print("This number is already a book id. Try again. ")
-                    continue
-                break
+                enter_id = check_id_individual("Enter the book id: ")
 
             except ValueError as e:
-                if zero_or_enter_choice("Please enter a valid book id - it must be a unique integer. ") == "0":
-                    # edit - to make option of n after second incorrect input lead back to the main menu.
-                    return_to_main_menu = True
-                    break
+                zero_or_enter_choice("Invalid book id. The book id must be a unique integer. ")
+
+            if return_to_loop:
+                return_to_loop = False
                 continue
+            break
 
         if return_to_main_menu:
             continue
@@ -155,27 +179,22 @@ while True:
 
         # Adding record to table books.
         cursor.execute("""INSERT INTO books VALUES (?,?,?,?)""", (enter_id, enter_title, enter_author, enter_qty))
-        # I believe that enter_id will always be defined... pyCharm doesn't agree... not sure why.
         conn.commit()
         print("Entry successful.")
 
     if user_menu_option == "2":
+        # Obtains which book id is to be updated. Uses while loops for validation of id and columns to be edited.
         while True:
             try:
-                book_to_be_updated_id = int(input("What is the id of the book you wish to update? "))
-                if book_to_be_updated_id in id_in_books_table():
-                    print("This number is already a book id. Try again with a unique integer.")
-                    continue
-                # could add feature that suggests a book id number
-                break
+                book_to_be_updated_id = check_id_individual("What is the id of the book you wish to update? ")
 
             except ValueError as e:
-                zero_or_enter_choice("The book id must be an integer.")
-                if return_to_loop:
-                    return_to_loop = False
-                    continue
-                return_to_main_menu = True
-                break
+                zero_or_enter_choice("The book id must be a unique integer.")
+
+            if return_to_loop:
+                return_to_loop = False
+                continue
+            break
 
         if return_to_main_menu:
             continue
@@ -201,64 +220,62 @@ while True:
                 if return_to_loop:
                     return_to_loop = False
                     continue
-                return_to_main_menu = True
-                break
+                if return_to_main_menu:
+                    break
 
             print(update_column())      # Updates the database through function.
             break
 
     if user_menu_option == "3":
-        # Option to delete a book
+        # Option to delete a book. While loops checks id existence.
         while True:
             try:
-                book_id_delete = int(input("What is the id of the book you want to delete? "))
-                if book_to_be_updated_id not in id_in_books_table():
-                    if zero_or_enter_choice("There is no record of books with given id number. ") == "0":
-                        # Bug: if I go here and then through to the (n/y) option and then click n.
-                        # There is an error in returning to the main menu.
-                        return_to_main_menu = True
-                        break
-                    # Could add - would you like to see current books in the database?
-                    continue
-                break
+                book_id_delete = check_id_exists("What is the id of the book you want to delete? ")
             except ValueError:
                 zero_or_enter_choice("Invalid book id. ")
-                if return_to_loop:
-                    return_to_loop = False
-                    continue
-                return_to_main_menu = True
+
+            if return_to_loop:
+                return_to_loop = False
+                continue
+            if return_to_main_menu:
                 break
+
+            # Verification it is the correct book to delete.
+            print("Book details")
+            select_record(book_id_delete)
+            confirmation = input("Delete this book? (y/n) ")
+            if confirmation == "n":
+                print("Book not deleted. Returning to main menu... ")
+            break
+
         if return_to_main_menu:
             continue
 
+        # Deleting book.
         cursor.execute("""DELETE FROM books WHERE id = ?""", (book_id_delete,))
         conn.commit()
         print("Record has been successfully deleted.")
 
     if user_menu_option == "4":
+        # Searching for a book by id. While loop checks id exists.
         while True:
             try:
-                search_id = int(input("What is the book id? "))
-                if search_id not in id_in_books_table():
-                    print("There is no record of books with given id number. Try again.")
-                    # Could add would you like to search by name/ title/ quantity.
-                    continue
-                break
+                search_id = check_id_exists("What is the book id? ")
+
             except ValueError:
                 zero_or_enter_choice("Invalid book id. ")
-                if return_to_loop:
-                    return_to_loop = False
-                    continue
-                return_to_main_menu = True
-                break
+
+            if return_to_loop:
+                return_to_loop = False
+                continue
+
         if return_to_main_menu:
             continue
 
-        cursor.execute("""SELECT id, Title, Author, Qty FROM books WHERE id = ?""", (search_id,))
-        print("-----------------------------------------------------------------------------------------------------")
-        for record in cursor:
-            print("id: {}\t Title: {}\t Author: {}\t Quantity: {}\t".format(*record))
-        print("-----------------------------------------------------------------------------------------------------")
+        # Function that selects a record from the database.
+        select_record(search_id)
+
+
 # After the user has finished using the program (as the loop has been broken from) the connection will close
 conn.close()
 
@@ -266,3 +283,8 @@ conn.close()
 # Potential edits in the future:
 # When adding a book, search in each column that the new information is original,
 # i.e. the book isn't already on the database, so no two same books with different id's get added.
+# Create a function that identifies the last id number added and suggests that number plus one.
+# In delete section: could add - would you like to see current books in the database?
+# To search section: could add would you like to search by name/ title/ quantity.
+
+
