@@ -24,7 +24,7 @@ def menu():
     # User menu function which returns the menu choice the user selected.
     return input("""
     Welcome to the bookstore clerk's program.
-    Please choose from one of the following options by typing it's number:
+    Type a number for the action you want to perform.
     1. Enter book
     2. Update book
     3. Delete book
@@ -149,7 +149,7 @@ while True:
     if user_menu_option == "0":
         break
 
-    if user_menu_option == "1":
+    elif user_menu_option == "1":
         # Info from users about book to be added, while loops to ensure unique id and correct value types are given.
         while True:
             try:
@@ -182,11 +182,11 @@ while True:
         conn.commit()
         print("Entry successful.")
 
-    if user_menu_option == "2":
+    elif user_menu_option == "2":
         # Obtains which book id is to be updated. Uses while loops for validation of id and columns to be edited.
         while True:
             try:
-                book_to_be_updated_id = check_id_individual("What is the id of the book you wish to update? ")
+                book_to_be_updated_id = check_id_exists("What is the id of the book you wish to update? ")
 
             except ValueError as e:
                 zero_or_enter_choice("The book id must be a unique integer.")
@@ -226,7 +226,7 @@ while True:
             print(update_column())      # Updates the database through function.
             break
 
-    if user_menu_option == "3":
+    elif user_menu_option == "3":
         # Option to delete a book. While loops checks id existence.
         while True:
             try:
@@ -246,6 +246,8 @@ while True:
             confirmation = input("Delete this book? (y/n) ")
             if confirmation == "n":
                 print("Book not deleted. Returning to main menu... ")
+                return_to_main_menu = True
+                break
             break
 
         if return_to_main_menu:
@@ -256,7 +258,7 @@ while True:
         conn.commit()
         print("Record has been successfully deleted.")
 
-    if user_menu_option == "4":
+    elif user_menu_option == "4":
         # Searching for a book by id. While loop checks id exists.
         while True:
             try:
@@ -268,10 +270,13 @@ while True:
             if return_to_loop:
                 return_to_loop = False
                 continue
+            break
 
         if return_to_main_menu:
             continue
 
+    else:
+        print("Invalid input. Enter a number between 0 and 4. ")
         # Function that selects a record from the database.
         select_record(search_id)
 
@@ -286,5 +291,7 @@ conn.close()
 # Create a function that identifies the last id number added and suggests that number plus one.
 # In delete section: could add - would you like to see current books in the database?
 # To search section: could add would you like to search by name/ title/ quantity.
+# Limit quantity to positive integers.
+# More restriction to id numbers.
 
 
